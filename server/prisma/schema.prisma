@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+enum Role {
+  ADMIN
+  CHAIRMAN
+  MEMBER
+}
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+}
+enum ApplicationType {
+  MATERIAL
+  ONE_TIME
+  SOCIAL
+  OTHER
+}
+enum ApplicationStatus {
+  NEW
+  IN_REVIEW
+  NEEDS_INFO
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+enum NewsStatus {
+  DRAFT
+  PUBLISHED
+}
+enum DocumentCategory {
+  RULES
+  RESOLUTIONS
+  PROTOCOLS
+  ORDERS
+  REPORTS
+  REGULATIONS
+  OTHER
+}
+enum EventStatus {
+  UPCOMING
+  PAST
+  CANCELLED
+}
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  password String
+  role Role @default(MEMBER)
+  isActive Boolean @default(true)
+  tokenVersion Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  member Member?
+  comments ApplicationComment[]
+  statusChanges ApplicationStatusHistory[]
+  news News[]
+  documents Document[]
+  notifications Notification[]
+  attachments ApplicationAttachment[]
+  eventParticipations EventParticipant[]
+}
+model Member {
+  id String @id @default(cuid())
+  userId String @unique
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  firstName String
+  lastName String
+  middleName String?
+  phone String
+  position String
+  department String
+  joinDate DateTime @default(now())
+  status MemberStatus @default(ACTIVE)
+  avatar String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  applications Application[]
+  @@index([lastName,firstName])
+  @@index([department,status])
+}
+model Application {
+  id String @id @default(cuid())
+  number Int @unique @default(autoincrement())
+  memberId String
+  member Member @relation(fields:[memberId],references:[id],onDelete:Restrict)
+  type ApplicationType
+  title String
+  description String
+  amount Decimal? @db.Decimal(12,2)
+  status ApplicationStatus @default(NEW)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  comments ApplicationComment[]
+  history ApplicationStatusHistory[]
+  attachments ApplicationAttachment[]
+  @@index([memberId,status])
+  @@index([createdAt])
+}
+model ApplicationComment {
+  id String @id @default(cuid())
+  applicationId String
+  application Application @relation(fields:[applicationId],references:[id],onDelete:Cascade)
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+  text String
+  createdAt DateTime @default(now())
+}
+model ApplicationStatusHistory {
+  id String @id @default(cuid())
+  applicationId String
+  application Application @relation(fields:[applicationId],references:[id],onDelete:Cascade)
+  oldStatus ApplicationStatus?
+  newStatus ApplicationStatus
+  changedBy String
+  user User @relation(fields:[changedBy],references:[id],onDelete:Restrict)
+  createdAt DateTime @default(now())
+}
+model ApplicationAttachment {
+  id String @id @default(cuid())
+  applicationId String
+  application Application @relation(fields:[applicationId],references:[id],onDelete:Cascade)
+  fileUrl String
+  fileName String
+  fileType String
+  fileSize Int
+  uploadedBy String
+  user User @relation(fields:[uploadedBy],references:[id],onDelete:Restrict)
+  createdAt DateTime @default(now())
+}
+model News {
+  id String @id @default(cuid())
+  title String
+  slug String @unique
+  shortDescription String
+  content String
+  image String?
+  authorId String
+  author User @relation(fields:[authorId],references:[id],onDelete:Restrict)
+  status NewsStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status,publishedAt])
+}
+model Document {
+  id String @id @default(cuid())
+  title String
+  description String
+  category DocumentCategory
+  fileUrl String
+  fileName String
+  fileType String
+  fileSize Int
+  uploadedBy String
+  uploader User @relation(fields:[uploadedBy],references:[id],onDelete:Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([category])
+}
+model Event {
+  id String @id @default(cuid())
+  title String
+  description String
+  date DateTime
+  startTime String
+  endTime String
+  location String
+  image String?
+  organizer String
+  status EventStatus @default(UPCOMING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  participants EventParticipant[]
+  @@index([date,status])
+}
+model EventParticipant {
+  id String @id @default(cuid())
+  eventId String
+  event Event @relation(fields:[eventId],references:[id],onDelete:Cascade)
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  createdAt DateTime @default(now())
+  @@unique([eventId,userId])
+}
+model Notification {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  title String
+  message String
+  type String
+  link String?
+  isRead Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@index([userId,isRead])
+}
+model Setting {
+  key String @id
+  value String
+  updatedAt DateTime @updatedAt
+}
